@@ -1,0 +1,71 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+// Google Maps API key — read from local.properties so it is never committed
+// to source. The manifest references it via the ${MAPS_API_KEY} placeholder.
+def mapsApiKey = localProperties.getProperty('MAPS_API_KEY')
+if (mapsApiKey == null || mapsApiKey.isEmpty()) {
+    mapsApiKey = 'YOUR_MAPS_API_KEY_HERE'
+}
+
+android {
+    namespace "com.pakpulse.pak_pulse"
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "com.pakpulse.pak_pulse"
+        // Google Maps SDK requires a minimum of API 21.
+        minSdkVersion Math.max(flutter.minSdkVersion, 21)
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+        // Merge (not replace) so Flutter's own ${applicationName} placeholder
+        // is preserved alongside the Maps key.
+        manifestPlaceholders += [MAPS_API_KEY: mapsApiKey]
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}

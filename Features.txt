@@ -1,0 +1,34 @@
+You are updating an existing Flutter mobile app. Apply every change below precisely. Do not rewrite the entire app — patch and update only what is specified.
+
+1. Rebrand
+Replace every instance of the text "Crisis Console" with "PakPulse" — in all screens, headers, titles, app bars, splash screens, and strings files (also rebrand the colour if you think there is any error with this ).
+
+2. Theme — Light Mode
+Set the default and active theme to light mode. Remove any dark mode as the default. Light mode must be the only mode that activates on app launch.
+
+3. Footer Navigation — Fixed on All Screens
+The bottom navigation bar must be persistent and fixed across every screen. It must never disappear, shift, or rebuild when switching between tabs. Wrap the entire app shell in a Scaffold with a permanent BottomNavigationBar at the root level — not inside individual screens. Use IndexedStack to preserve screen state between tab switches.
+
+4. Text Reduction — All Screens
+Go through every screen and card. Remove all small secondary labels, subtitles, helper text, and descriptive micro-copy that is not critical to understanding the data. What remains must be displayed in large or bold typography. The rule: if a text element is below 13sp and not a number or tag, remove it.
+
+5. Onboarding — Location Permission
+On first app launch, before the home screen loads, show a clean single-screen location onboarding. Ask for device GPS permission using geolocator package. If permission is granted, auto-detect and store the user's city. If denied or if the user prefers manual input, show a simple city search field where they can type their primary city (e.g. Islamabad, Rawalpindi, Lahore). Store this location in local SharedPreferences and use it across all weather, map, and alert screens. Never ask again after it is set. Add a way to change it from settings.
+
+6. Real Google Maps Integration
+In the map section, integrate a live Google Maps view using the google_maps_flutter package. Requirements:
+
+Enable the Traffic Layer so real-time congestion is visible on the map
+On load, center the map on the user's stored location (from onboarding)
+Draw a red semi-transparent polygon over the active crisis zone sector (use G-10, Islamabad as the default demo zone)
+Add a pulsing red marker at the crisis epicentre
+Draw a green polyline showing the recommended alternate route
+Add blue markers for nearby emergency services (hospitals, rescue stations) fetched via Google Places API
+The map must be interactive — pinch zoom, pan, and tap markers for a bottom sheet detail card
+Use your Google Maps API key from the project config — do not hardcode it in source
+
+
+7. Signal Architecture — Do Not Change
+The backend signal layer (OpenWeatherMap, WebSocket social feed, GDACS, Google Places) is already defined. Wire the weather data from OpenWeatherMap to the user's stored location from onboarding so all temperature, rainfall, and alert data reflects their city, not a hardcoded location.
+
+Apply all seven changes. Preserve all existing agent pipeline logic, screen structure, and navigation routes. Do not introduce new dependencies beyond geolocator, google_maps_flutter, and shared_preferences unless already present.

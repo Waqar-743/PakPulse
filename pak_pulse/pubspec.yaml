@@ -1,0 +1,62 @@
+name: pak_pulse
+description: PAK·PULSE — Crisis Intelligence & Response Orchestrator
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # Map
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
+  google_maps_flutter: ^2.9.0
+
+  # Location
+  geolocator: ^13.0.1
+
+  # Animations
+  flutter_animate: ^4.5.0
+  animations: ^2.0.11
+  lottie: ^3.1.2
+  shimmer: ^3.0.0
+
+  # Fonts
+  google_fonts: ^8.1.0
+
+  # Networking & env
+  http: ^1.2.2
+  dio: ^5.5.0
+  flutter_dotenv: ^5.1.0
+
+  # Utilities
+  intl: ^0.20.2
+  uuid: ^4.4.0
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.4.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+    - assets/lottie/
+    - assets/mock/

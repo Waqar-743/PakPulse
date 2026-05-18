@@ -1,0 +1,19 @@
+{
+  "@@locale": "ur",
+  "appTitle": "پاک پلس",
+  "crisisIntelligence": "بحران انٹیلی جنس اور ردعمل",
+  "signalInbox": "سگنل ان باکس",
+  "actionConsole": "ایکشن کنسول",
+  "history": "تاریخ",
+  "settings": "ترتیبات",
+  "critical": "نازک",
+  "high": "اعلی",
+  "moderate": "اعتدال پسند",
+  "low": "کم",
+  "flood": "شہری سیلاب",
+  "heatwave": "شدید گرمی",
+  "protest": "سڑک بندش",
+  "liveSignals": "لائیو سگنلز",
+  "runPipeline": "پائپ لائن چلائیں",
+  "getStarted": "شروع کریں"
+}
