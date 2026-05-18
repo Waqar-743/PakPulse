@@ -1,0 +1,19 @@
+{
+  "@@locale": "en",
+  "appTitle": "PAK·PULSE",
+  "crisisIntelligence": "Crisis Intelligence & Response",
+  "signalInbox": "Signal Inbox",
+  "actionConsole": "Action Console",
+  "history": "History",
+  "settings": "Settings",
+  "critical": "CRITICAL",
+  "high": "HIGH",
+  "moderate": "MODERATE",
+  "low": "LOW",
+  "flood": "Urban Flooding",
+  "heatwave": "Extreme Heatwave",
+  "protest": "Road Blockage",
+  "liveSignals": "LIVE SIGNALS",
+  "runPipeline": "RUN PIPELINE",
+  "getStarted": "GET STARTED"
+}
