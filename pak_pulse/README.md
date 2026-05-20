@@ -1,206 +1,110 @@
 <p align="center">
-  <img src="Pak-Pulse-ICON.png" width="130" alt="PAK·PULSE"/>
+  <img src="Pak-Pulse-ICON.png" width="150" alt="PAK·PULSE app icon"/>
 </p>
 
 <h1 align="center">PAK·PULSE</h1>
-<p align="center"><b>Crisis Intelligence & Response Orchestrator for Pakistan</b></p>
+
 <p align="center">
-  <i>Real-time multi-agent AI that detects, classifies, and coordinates disaster response — built for Pakistani communities, powered by live data.</i>
+  <b>When a road gets blocked in Islamabad, six AI agents argue about it before your neighbour even tweets.</b>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter" />
-  <img src="https://img.shields.io/badge/Dart-3.3+-0175C2?logo=dart" />
-  <img src="https://img.shields.io/badge/AI-Multi--Agent_Pipeline-blueviolet" />
-  <img src="https://img.shields.io/badge/Hackathon-2026-FF4B4B" />
-  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android" />
+  <i>A citizen-first crisis intelligence app for Pakistan — live signals in, verified alerts out.</i>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Waqar-743/PakPulse/releases/latest"><img src="https://img.shields.io/github/v/release/Waqar-743/PakPulse?label=APK&color=3DDC84&logo=android"/></a>
+  <img src="https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter"/>
+  <img src="https://img.shields.io/badge/Dart-3.3%2B-0175C2?logo=dart"/>
+  <img src="https://img.shields.io/badge/AI-6--Agent_Pipeline-blueviolet"/>
+  <img src="https://img.shields.io/badge/RAG-Gemini-FF6F00"/>
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android"/>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Waqar-743/PakPulse/releases/latest/download/pak-pulse-v1.1.0.apk"><b>⬇ Download the latest APK</b></a>
 </p>
 
 ---
 
-## The Problem We Are Solving
+## The Story
 
-Pakistan is one of the most disaster-prone countries on Earth. Every year, millions of citizens face floods, earthquakes, heatwaves, and civil emergencies with **no unified, intelligent response layer**. Information is fragmented across news tickers, WhatsApp forwards, and government bulletins that arrive hours too late. First responders act on gut feel. Communities are left guessing.
+It's a Tuesday afternoon in G-10. Somebody on Margalla Road posts on X that the chowk is blocked. Three minutes later a citizen forwards the same thing on WhatsApp. Five minutes later a PMD weather alert quietly pings about rain in Zone 3. Twenty minutes later traffic on Faizabad doubles back.
 
-**PAK·PULSE changes that.**
+Right now, those four facts live in four different places. Your phone doesn't connect them. Rescue 1122 doesn't connect them. Your cousin sitting in F-7 has no idea any of this is happening until he drives into it.
 
----
+**PAK·PULSE connects them.** As reports come in, they cluster by sector and by what's being reported. The moment two or more citizens describe the same thing in the same place, six AI agents wake up, cross-check the cluster against TomTom's live traffic feed and GDACS's regional disaster feed, score the confidence, and — only if the evidence holds — drop a verified alert on the map and ping every PAK·PULSE user within 25 km.
 
-## What Is PAK·PULSE?
-
-PAK·PULSE is a mobile-first crisis intelligence platform that runs a **live multi-agent AI pipeline** directly on your phone. The moment a disaster signal comes in — from weather APIs, social feeds, or GDACS satellite alerts — four specialized AI agents wake up, confer, and produce a classified, severity-scored crisis with a recommended action plan in seconds.
-
-Think of it as a **crisis command centre that fits in your pocket** — built specifically for Pakistan's geography, cities, and emergency ecosystem.
+That's the whole pitch. Citizens report; agents verify; the city sees it before it spreads.
 
 ---
 
-## Hackathon Context
+## What It Actually Does
 
-> This app was built as a hackathon submission, demonstrating how AI agent orchestration can be applied to real-world humanitarian challenges in Pakistan.
-
-**Challenge statement:** Design a technology solution that improves disaster preparedness and emergency response for communities in Pakistan.
-
-**Our answer:** A multi-agent AI pipeline that ingests live signals from multiple data sources, detects emerging crises, scores their severity, and dispatches structured response actions — all in real time, all on a mobile device.
-
-**What makes it stand out:**
-- Four AI agents working in concert, each with a distinct role
-- Live data integration (weather, maps, emergency feeds)
-- Location-aware — auto-detects your Pakistani city and tailors all alerts
-- Built to scale from a single user to city-wide emergency operations
+| | |
+|---|---|
+| **Crowd-clustered intake** | Signals from Twitter, citizen reports, PMD, NDMA, and traffic cameras get grouped by sector + crisis type within a 2-hour window. Official sources (PMD/NDMA) count 3× weight. |
+| **6-agent verification chain** | `Signal → Detection → Verification → FactCheck → Severity → Action`. Verification pulls live TomTom + GDACS evidence. FactCheck is a hard gate — unverified clusters never reach the map. |
+| **Real-time notifications** | Verified crisis within 25 km of your stored city → dismissible banner on Home with a one-tap email share. No backend, no Firebase, no card. |
+| **Grounded chatbot ("Ask")** | RAG over active and historical crisis records. Replies in English, Urdu, or Roman-Urdu. Cites the records it used. Won't invent locations, casualties, or times. |
+| **Live maps** | OpenStreetMap tiles, crisis polygons, alternate routes, emergency-service markers. |
+| **Bilingual everywhere** | English + Urdu signal parsing, Roman-Urdu fallback. Built for how Pakistanis actually type. |
 
 ---
 
-## Architecture Overview
+## Why The Pipeline Has Six Agents
+
+A single LLM call deciding "is this real?" gets it wrong in two ways: it hallucinates corroboration that doesn't exist, and it can't be audited. Splitting the work makes each step inspectable and each failure recoverable.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        PAK·PULSE APP                            │
-│                                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │  Home    │  │  Signal  │  │  Crisis  │  │    Action     │  │
-│  │Dashboard │  │  Inbox   │  │  Detail  │  │   Console     │  │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────┬────────┘  │
-│       │              │             │                │            │
-│  ─────┴──────────────┴─────────────┴────────────────┴────────── │
-│                     Flutter UI Layer (Riverpod)                  │
-│  ─────────────────────────────────────────────────────────────  │
-│                                                                 │
-│              ┌──────────── ORCHESTRATOR ───────────┐            │
-│              │         (Pipeline Controller)        │            │
-│              │                                      │            │
-│     ┌────────▼────────┐            ┌────────────────▼────────┐  │
-│     │  SIGNAL AGENT   │            │   DETECTION AGENT       │  │
-│     │  Parses raw     │────────────▶  Identifies crisis type  │  │
-│     │  input signals  │            │  from signal history     │  │
-│     └─────────────────┘            └───────────┬─────────────┘  │
-│                                                │                │
-│     ┌───────────────────────────────────────────▼─────────────┐  │
-│     │                  SEVERITY AGENT                         │  │
-│     │     Scores impact: Low / Medium / High / Critical       │  │
-│     └───────────────────────────────┬─────────────────────────┘  │
-│                                     │                            │
-│     ┌───────────────────────────────▼─────────────────────────┐  │
-│     │                   ACTION AGENT                          │  │
-│     │  Generates structured response plan with tools:         │  │
-│     │  🚨 alert_tool  📍 geocoding_tool                       │  │
-│     │  🔀 reroute_tool  🎫 ticket_tool                        │  │
-│     └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+   ┌─────────────┐    ┌─────────────┐    ┌──────────────┐
+   │  SIGNAL     │    │  DETECTION  │    │ VERIFICATION │
+   │             │    │             │    │              │
+   │ normalize   │───▶│ cluster +   │───▶│ TomTom +     │
+   │ parse text  │    │ dedup vs.   │    │ GDACS evid.  │
+   │ extract loc │    │ active map  │    │ (no LLM)     │
+   └─────────────┘    └─────────────┘    └──────┬───────┘
+                                                │
+                ┌───────────────────────────────┘
+                ▼
+       ┌──────────────┐    ┌─────────────┐    ┌────────────┐
+       │ FACT-CHECK   │    │  SEVERITY   │    │  ACTION    │
+       │              │    │             │    │            │
+       │ confidence + │───▶│ RSI score + │───▶│ alerts +   │
+       │ go / no-go   │    │ summary EN+ │    │ reroute +  │
+       │ HARD GATE    │    │ UR          │    │ tickets    │
+       └──────────────┘    └─────────────┘    └────────────┘
 ```
+
+The hard gate is the point. If FactCheck says no, severity and action never run, and the crisis never lands on the map. Citizens see "watching" not "confirmed." That's how trust survives a noisy news cycle.
 
 ---
 
-## Agent Pipeline — Step by Step
+## Data Sources
 
-```
-Raw Signal Received
-        │
-        ▼
-┌───────────────┐
-│ SIGNAL AGENT  │  → Parses text/metadata, extracts location,
-│               │    event type, and confidence score
-└───────┬───────┘
-        │
-        ▼
-┌─────────────────┐
-│ DETECTION AGENT │  → Cross-references with active crises
-│                 │    & recent signal history; decides if
-│                 │    this is a new event or an existing one
-└────────┬────────┘
-         │
-         ▼
-┌────────────────┐
-│ SEVERITY AGENT │  → Scores severity (1–10) using weather
-│                │    data, population density, crisis type
-│                │    and geospatial risk factors
-└───────┬────────┘
-        │
-        ▼
-┌───────────────┐
-│ ACTION AGENT  │  → Fires tools to create alerts, compute
-│               │    safe evacuation routes, dispatch tickets
-│               │    to relevant emergency departments
-└───────┬───────┘
-        │
-        ▼
-┌───────────────────────────────┐
-│  Crisis object saved to state │
-│  UI updates in real-time      │
-│  User notified via app        │
-└───────────────────────────────┘
-```
-
----
-
-## Live Data Sources
-
-| Source | Data | Key needed | Used For |
+| Source | What it gives us | Key needed | Free tier |
 |---|---|---|---|
-| **Google Gemini** | LLM reasoning (`gemini-2.5-flash`) | Yes (free tier) | Powers the 4-agent pipeline; mock fallback on error |
-| **Open-Meteo** | Current + next-day temperature, rainfall, humidity | No | Live conditions + heatwave/flood forecast |
-| **OpenStreetMap** | Map tiles (CartoDB Voyager) via `flutter_map` | No | Crisis map, zones, routes, markers |
-| **GDACS** | Global disaster alerts | No | Live regional flood / disaster feed |
-| **TomTom Traffic** | Real road incidents, closures, jams | Yes (free tier) | Live road status near a crisis |
-
----
-
-## Feature Breakdown
-
-### Home Dashboard
-- Live crisis card feed with severity color-coding
-- Real-time signal counter updating every 8 seconds
-- City-aware weather overlay
-
-### Signal Inbox
-- Streaming feed of incoming crisis signals
-- Each signal shows source, confidence, and timestamp
-- One-tap to run the full agent pipeline on any signal
-
-### Crisis Detail
-- Interactive OpenStreetMap (`flutter_map`) — crisis zone polygon, pulsing epicentre
-- Alternate safe route (green polyline) + emergency-service markers
-- Live atmospheric conditions + next-day heatwave/flood forecast (Open-Meteo)
-- Live Road Status — real road incidents/closures from TomTom Traffic
-- Agent Reasoning trace — the full 4-agent pipeline for this crisis
-
-### Action Console
-- Structured action plan generated by the Action Agent
-- Each action item links to a tool call (alert, reroute, ticket)
-- Real-time execution status per action
-
-### Agent Trace
-- Transparent view of every agent step in the pipeline
-- Input/output log for Signal → Detection → Severity → Action
-- Built for judges and developers to inspect AI reasoning
-
-### Onboarding
-- First-launch GPS permission request
-- Auto-detects user's Pakistani city
-- Manual city search fallback (100+ cities supported)
-- Stored in SharedPreferences, never asked again
-
-### Settings
-- Change city at any time
-- App theme and preferences
+| **Google Gemini** (`gemini-2.5-flash`) | LLM reasoning for Signal / Detection / FactCheck / Severity / Action / Chat | Yes | 1k req/day |
+| **TomTom Traffic Incidents** | Live road closures, jams, accidents — the "official" corroboration for road-blockage clusters | Yes | 2.5k req/day |
+| **GDACS** (UN + EC) | Regional floods, cyclones, alerts — the "official" corroboration for flood clusters | No | Unlimited |
+| **Open-Meteo** | Weather + heat forecast for the user's city | No | Unlimited |
+| **OpenStreetMap** (CartoDB Voyager) | Map tiles via `flutter_map` | No | Unlimited |
 
 ---
 
 ## Tech Stack
 
 ```
-Frontend          Flutter 3.x + Dart 3.3+
-State Management  Flutter Riverpod 2.x
-Navigation        go_router 14.x
-Maps              flutter_map + OpenStreetMap (no key)
-AI Reasoning      Google Gemini (gemini-2.5-flash)
+Frontend          Flutter 3.x · Dart 3.3+
+State             Riverpod 2.x (StateNotifier + StreamProvider)
+Navigation        go_router 14
+LLM               Google Gemini (gemini-2.5-flash) via Dio
+Maps              flutter_map + OSM/CartoDB tiles (no key)
 Location          geolocator
-Animations        flutter_animate + Lottie + shimmer
-Networking        Dio + http
-Local Storage     shared_preferences
-Fonts             Google Fonts
-AI Pipeline       Custom multi-agent orchestrator (Dart)
-Environment       flutter_dotenv
+Animations        flutter_animate · Lottie · shimmer
+Storage           shared_preferences
+Env               flutter_dotenv (bundled as asset)
+Agents            Custom multi-agent orchestrator (pure Dart, stream-based)
 ```
 
 ---
@@ -209,46 +113,39 @@ Environment       flutter_dotenv
 
 ```
 lib/
-├── main.dart               # App entry point
-├── app.dart                # Root widget + theme
-├── router.dart             # go_router route definitions
-├── providers.dart          # Global Riverpod providers
+├── main.dart                          # bootstrap
+├── app.dart                           # MaterialApp.router + theme
+├── router.dart                        # go_router routes
+├── providers.dart                     # signal & crisis state
 │
-├── agents/                 # AI Agent Pipeline
-│   ├── orchestrator.dart   # Pipeline controller (stream-based)
-│   ├── signal_agent.dart   # Parses raw signals
-│   ├── detection_agent.dart# Crisis detection & deduplication
-│   ├── severity_agent.dart # Impact scoring
-│   ├── action_agent.dart   # Response plan generation
-│   └── tools/              # Agent tool implementations
-│       ├── alert_tool.dart
-│       ├── geocoding_tool.dart
-│       ├── reroute_tool.dart
-│       └── ticket_tool.dart
-│
-├── core/
-│   ├── constants/          # Crisis types, Pakistan cities
-│   ├── theme/              # App-wide light theme
-│   └── utils/              # Helpers
+├── agents/
+│   ├── orchestrator.dart              # 6-stage stream pipeline
+│   ├── orchestrator_providers.dart    # clusterer + auto-verifier providers
+│   ├── signal_clusterer.dart          # sector × type × window grouping
+│   ├── signal_agent.dart              # parse raw text → normalized
+│   ├── detection_agent.dart           # new vs. existing crisis
+│   ├── verification_agent.dart        # TomTom + GDACS cross-check (no LLM)
+│   ├── fact_check_agent.dart          # confidence score + hard gate
+│   ├── severity_agent.dart            # RSI + bilingual summary
+│   ├── action_agent.dart              # alert / reroute / ticket plan
+│   └── tools/                         # geocoding, reroute, alert, ticket
 │
 ├── data/
-│   ├── models/             # Crisis, Signal, Action, LiveConditions
-│   ├── services/           # LiveConditionsService, LocationService, LLM client
-│   ├── mock/               # Demo data for hackathon presentation
-│   └── repositories/       # Data access layer
+│   ├── models/                        # crisis, signal, road_incident, disaster_news…
+│   ├── services/                      # llm_client, traffic, disaster_news, notification…
+│   └── mock/                          # seeds for offline DEMO_MODE
 │
 ├── features/
-│   ├── home/               # Dashboard screen
-│   ├── signal_inbox/       # Signal feed
-│   ├── crisis_detail/      # Map + detail view
-│   ├── action_console/     # Action plan UI
-│   ├── agent_trace/        # Pipeline transparency
-│   ├── onboarding/         # City/GPS setup
-│   ├── settings/           # User preferences
-│   ├── history/            # Past crisis log
-│   └── shell/              # Persistent navigation shell
+│   ├── onboarding/                    # GPS / city picker
+│   ├── home/                          # dashboard + verified-alert banner + Ask FAB
+│   ├── chat/                          # RAG chatbot screen
+│   ├── crisis_detail/                 # map + live traffic + agent trace
+│   ├── agent_trace/                   # transparent 6-step reasoning log
+│   ├── architecture/                  # in-app diagram of the pipeline
+│   ├── history/                       # past crises
+│   ├── signal_inbox/ · action_console/ · settings/ · splash/ · shell/
 │
-└── widgets/                # Shared UI components
+└── widgets/                           # atoms / molecules / organisms
 ```
 
 ---
@@ -256,81 +153,96 @@ lib/
 ## Getting Started
 
 ### Prerequisites
+- Flutter SDK `>= 3.3.0`
+- Android Studio or VS Code (Flutter extension)
+- An Android 7+ device or emulator
+- A free Gemini key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- *(Optional)* A free TomTom key from [developer.tomtom.com](https://developer.tomtom.com) — road-blockage verification falls back to citizen-only weighting without it
 
-- Flutter SDK `>=3.3.0`
-- Android Studio or VS Code with Flutter extension
-- An Android device or emulator (API 21+)
-- A free Google Gemini API key ([aistudio.google.com](https://aistudio.google.com/apikey))
-- A free TomTom API key ([developer.tomtom.com](https://developer.tomtom.com)) — optional, for live road data
-
-### Setup
+### Run it
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/pak-pulse.git
-cd pak-pulse/pak_pulse
+git clone https://github.com/Waqar-743/PakPulse.git
+cd PakPulse/pak_pulse
 
-# 2. Install dependencies
+# Configure secrets — pak_pulse/.env (gitignored)
+#   GEMINI_API_KEY=AIza...
+#   TOMTOM_API_KEY=...
+#   DEMO_MODE=false           # true = fully offline mock pipeline
+
 flutter pub get
-
-# 3. Configure your environment file (.env)
-# Set these keys:
-#   GEMINI_API_KEY=your_key_here     # required for live AI reasoning
-#   TOMTOM_API_KEY=your_key_here     # optional — live road incidents
-#   DEMO_MODE=false                  # false = live Gemini, true = offline mock
-# Open-Meteo, OpenStreetMap and GDACS need no key.
-
-# 4. Run on connected device
 flutter run --release
 ```
 
-### Build APK
+### Build a release APK
 
 ```bash
 flutter build apk --release
-# Output: build/app/outputs/flutter-apk/app-release.apk
+# → build/app/outputs/flutter-apk/app-release.apk
 ```
 
-### Build App Bundle (Play Store)
+> On Windows machines with a tight C: drive, redirect Gradle off C: first:
+> ```powershell
+> $env:GRADLE_USER_HOME = 'D:\gradle-home'
+> $env:TMP = 'D:\build-temp'; $env:TEMP = 'D:\build-temp'
+> ```
 
-```bash
-flutter build appbundle --release
-# Output: build/app/outputs/bundle/release/app-release.aab
-```
+### Try the latest APK without building
+
+[**Download `pak-pulse-v1.1.0.apk` from the latest release →**](https://github.com/Waqar-743/PakPulse/releases/latest)
+
+Enable "Install from unknown sources" on your Android, open the APK, install. Grant location on first launch.
 
 ---
 
-## Hackathon Demo Flow
+## How To Demo It
 
-1. Launch app → onboarding asks for city (try **Islamabad**)
-2. Home screen shows active crisis cards with live severity scores
-3. Tap **Signal Inbox** → see incoming signals streaming in real-time
-4. Tap any signal → run the **full 4-agent pipeline** and watch it execute
-5. Open **Crisis Detail** → see the live Google Map with crisis zone + safe route
-6. Open **Agent Trace** → inspect every AI reasoning step transparently
-7. Open **Action Console** → review the structured emergency response plan
+1. Launch → onboarding asks for your city. Pick **Islamabad**.
+2. On the Home screen, leave the signal simulator running. Within ~16 seconds two same-sector signals will accumulate.
+3. Watch the agent rail at the bottom of the screen light up: **S → D → V → FC → Sv → A**.
+4. If FactCheck verifies (live mode with TomTom corroboration this happens fast), a new crisis pin lands on the map and a banner appears.
+5. Tap the **Ask** FAB → ask "Is G-10 safe right now?" The chatbot retrieves the verified crisis and answers grounded in it.
+6. Tap a crisis → open the Agent Trace screen → inspect every input / output / reasoning step the agents produced.
 
 ---
 
-## Why Pakistan Needs This
+## Security Note On The Release APK
 
-- Pakistan ranks among the top 10 countries most vulnerable to climate change
-- The 2022 floods affected **33 million people** and killed over 1,700
-- Emergency response coordination remains siloed and slow
-- PAK·PULSE is a step toward a unified, AI-assisted national crisis layer
+The published APK at `releases/latest` bundles `.env` as a Flutter asset — that's how `flutter_dotenv` works. Anyone who decompiles the APK can read the embedded `GEMINI_API_KEY` and `TOMTOM_API_KEY`. For a demo build, fine. **For wider public distribution: rotate both keys after publishing**, or move them server-side behind a thin proxy. This is a known trade-off of shipping client-side keys with `flutter_dotenv`, not a project-specific bug.
+
+---
+
+## Why Pakistan Needs Something Like This
+
+- Pakistan ranks in the top 10 most climate-vulnerable countries on the [Global Climate Risk Index](https://www.germanwatch.org/en/cri).
+- The 2022 floods affected **33 million people** and killed over 1,700.
+- Crisis information today is scattered across Twitter, WhatsApp, PMD bulletins, ICT Police tweets, and Rescue 1122 hotlines — none of which talk to each other.
+- A unified, citizen-first verification layer doesn't fix that overnight. But it gives one shared source of truth that's auditable, bilingual, and lives in everyone's pocket.
+
+---
+
+## Roadmap
+
+- Push notifications via FCM (currently in-app only; needs Firebase Blaze plan)
+- Server-side proxy so API keys can leave the APK
+- Embeddings-based retrieval for the chatbot once the crisis corpus exceeds ~200 records (currently keyword + sector + recency)
+- Twitter / X ingestion via official API once budget permits
+- Karachi, Lahore, Peshawar sector dictionaries (Islamabad / Rawalpindi are fully covered today)
 
 ---
 
 ## Contributing
 
-Pull requests are welcome. For major changes, open an issue first.
+PRs welcome. Open an issue first for anything bigger than a typo. If you're adding a new agent or a new data source, keep the orchestrator's stream contract intact — `OrchestratorEvent` shape is what the UI's agent timeline depends on.
 
 ---
 
 ## License
 
-MIT License — see `LICENSE` for details.
+MIT — see `LICENSE`.
 
 ---
 
-<p align="center">Built with ❤️ for Pakistan · Hackathon 2026</p>
+<p align="center">
+  <i>Built in Islamabad. For everyone who's ever taken a wrong turn into a road that nobody told them was blocked.</i>
+</p>
