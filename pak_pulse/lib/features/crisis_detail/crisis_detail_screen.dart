@@ -17,6 +17,7 @@ import '../../widgets/atoms/severity_chip.dart';
 import '../../widgets/molecules/action_card.dart';
 import '../../widgets/organisms/agent_timeline.dart';
 import '../../widgets/organisms/crisis_map.dart';
+import '../../widgets/organisms/live_traffic_card.dart';
 import '../../widgets/pp_chrome.dart';
 
 class CrisisDetailScreen extends ConsumerWidget {
@@ -119,6 +120,18 @@ class _CrisisDetailViewState extends State<_CrisisDetailView>
                         // Live conditions
                         _LiveConditionsCard(crisis: c)
                             .animate(delay: 180.ms)
+                            .fadeIn(
+                              duration: 600.ms,
+                              curve: Cubic(0.32, 0.72, 0, 1),
+                            ),
+                        const SizedBox(height: 16),
+                        // Live road status (TomTom traffic incidents)
+                        LiveTrafficCard(
+                          lat: c.lat,
+                          lng: c.lng,
+                          sectorLabel: c.sector,
+                        )
+                            .animate(delay: 210.ms)
                             .fadeIn(
                               duration: 600.ms,
                               curve: Cubic(0.32, 0.72, 0, 1),
@@ -692,6 +705,7 @@ class _AgentReasoningSection extends StatelessWidget {
               : AgentTimeline(
                   steps: crisis.reasoning,
                   isLoading: crisis.reasoning.isEmpty,
+                  embedded: true,
                 ),
         ),
       ],
@@ -873,6 +887,10 @@ class _LiveReadings extends StatelessWidget {
             ],
           ),
         ),
+        if (conditions.hasForecast) ...[
+          const SizedBox(height: 10),
+          _ForecastStrip(conditions: conditions),
+        ],
       ],
     );
   }
@@ -941,6 +959,133 @@ class _LiveReadings extends StatelessWidget {
     if (mm >= 10) return AppColors.high;
     if (mm >= 1) return AppColors.moderate;
     return AppColors.textTertiary;
+  }
+}
+
+// ── Next-Day Forecast Strip ───────────────────────────────────────────────────
+
+class _ForecastStrip extends StatelessWidget {
+  final LiveConditions conditions;
+  const _ForecastStrip({required this.conditions});
+
+  static Color _riskColor(HazardRisk r) {
+    switch (r) {
+      case HazardRisk.extreme:
+        return AppColors.critical;
+      case HazardRisk.high:
+        return AppColors.high;
+      case HazardRisk.moderate:
+        return AppColors.moderate;
+      case HazardRisk.low:
+        return AppColors.low;
+      case HazardRisk.unknown:
+        return AppColors.textTertiary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxT = conditions.forecastMaxTempC;
+    final heat = conditions.heatwaveRisk;
+    final flood = conditions.floodRisk;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundBase,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_outlined,
+                  size: 12, color: AppColors.textTertiary),
+              const SizedBox(width: 6),
+              MonoText('NEXT-DAY FORECAST',
+                  fontSize: 9, color: AppColors.textTertiary),
+              const Spacer(),
+              if (maxT != null)
+                MonoText(
+                  'HIGH ${maxT.toStringAsFixed(0)}°C',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _RiskBadge(
+                icon: Icons.local_fire_department,
+                label: 'HEATWAVE',
+                risk: heat,
+                color: _riskColor(heat),
+              ),
+              const SizedBox(width: 8),
+              _RiskBadge(
+                icon: Icons.water_drop,
+                label: 'FLOOD',
+                risk: flood,
+                color: _riskColor(flood),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RiskBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final HazardRisk risk;
+  final Color color;
+
+  const _RiskBadge({
+    required this.icon,
+    required this.label,
+    required this.risk,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withOpacity(0.4)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MonoText(label,
+                      fontSize: 8, color: AppColors.textTertiary),
+                  MonoText(
+                    risk.label.toUpperCase(),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

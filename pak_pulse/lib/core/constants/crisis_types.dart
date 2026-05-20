@@ -6,7 +6,7 @@ enum SignalSource { twitter, pmd, ndma, traffic, citizen }
 
 enum SignalLanguage { english, urdu, romanUrdu }
 
-enum AgentName { signal, detection, severity, action }
+enum AgentName { signal, detection, verification, factCheck, severity, action }
 
 enum ActionType { dispatch, reroute, alert, ticket }
 

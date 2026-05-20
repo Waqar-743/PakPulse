@@ -1,16 +1,21 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'data/models/crisis.dart';
 import 'data/models/crisis_signal.dart';
+import 'data/models/disaster_news.dart';
 import 'data/models/live_conditions.dart';
+import 'data/models/road_incident.dart';
 import 'data/models/user_location.dart';
 import 'data/mock/mock_crises.dart';
 import 'data/mock/mock_signals.dart';
 import 'data/mock/mock_agent_responses.dart';
+import 'data/services/disaster_news_service.dart';
 import 'data/services/live_conditions_service.dart';
 import 'data/services/location_service.dart';
+import 'data/services/traffic_service.dart';
 import 'core/constants/crisis_types.dart';
 import 'core/constants/pakistan_cities.dart';
 
@@ -129,7 +134,11 @@ final userLiveConditionsProvider =
 // Light mode is the only supported theme — the app launches and stays light.
 final themeModeProvider = StateProvider<ThemeMode>((_) => ThemeMode.light);
 
-final demoModeProvider = StateProvider<bool>((ref) => true);
+// Defaults to whatever DEMO_MODE is set to in .env. When false, agents call
+// the live LLM (Gemini) and fall back to mock only on error — "hybrid mode".
+final demoModeProvider = StateProvider<bool>(
+  (ref) => (dotenv.maybeGet('DEMO_MODE') ?? 'true').toLowerCase() == 'true',
+);
 
 final autoPlayProvider = StateProvider<bool>((ref) => false);
 
@@ -221,3 +230,29 @@ final liveConditionsProvider =
   final svc = ref.watch(liveConditionsServiceProvider);
   return svc.fetchFor(latitude: key.lat, longitude: key.lng);
 });
+
+// ── Disaster news feed (GDACS — live, no API key) ────────────────────────────
+
+final disasterNewsServiceProvider =
+    Provider<DisasterNewsService>((_) => DisasterNewsService());
+
+/// Live flood-watch feed from GDACS — Pakistan and regional disasters.
+final disasterFeedProvider =
+    FutureProvider.autoDispose<List<DisasterNews>>((ref) async {
+  final svc = ref.watch(disasterNewsServiceProvider);
+  return svc.fetchFloodWatch();
+});
+
+// ── Live road incidents (TomTom Traffic) ─────────────────────────────────────
+
+final trafficServiceProvider =
+    Provider<TrafficService>((_) => TrafficService());
+
+/// Real road incidents (closures, jams, accidents) around a given point.
+final roadIncidentsProvider =
+    FutureProvider.family.autoDispose<List<RoadIncident>, LatLngKey>(
+        (ref, key) async {
+  final svc = ref.watch(trafficServiceProvider);
+  return svc.fetchIncidents(lat: key.lat, lng: key.lng);
+});
+

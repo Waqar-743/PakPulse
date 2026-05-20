@@ -353,8 +353,18 @@ class MockCrises {
     isActive: false,
   );
 
-  static List<Crisis> get activeCrises => [crisis001, crisis002, crisis003];
-  static List<Crisis> get historicalCrises =>
-      [hist001, hist002, hist003, hist004, hist005];
+  // Active crises start empty — the AI pipeline creates them when real signals
+  // are processed. The 3 scenario crises below are kept as historical reference.
+  static List<Crisis> get activeCrises => [];
+  static List<Crisis> get historicalCrises => [
+        crisis001,
+        crisis002,
+        crisis003,
+        hist001,
+        hist002,
+        hist003,
+        hist004,
+        hist005,
+      ];
   static List<Crisis> get allCrises => [...activeCrises, ...historicalCrises];
 }

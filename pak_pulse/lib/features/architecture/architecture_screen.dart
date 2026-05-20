@@ -170,6 +170,8 @@ class _AgentDiagram extends StatelessWidget {
     final agents = [
       (AgentName.signal, 'S'),
       (AgentName.detection, 'D'),
+      (AgentName.verification, 'V'),
+      (AgentName.factCheck, 'FC'),
       (AgentName.severity, 'Sv'),
       (AgentName.action, 'A'),
     ];

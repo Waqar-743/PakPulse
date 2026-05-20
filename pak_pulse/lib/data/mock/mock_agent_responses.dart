@@ -37,6 +37,24 @@ class MockAgentResponses {
             'RSI computed: base 40 + source multipliers + Pakistan context factors. DEMO_MODE active.',
       };
 
+  Map<String, dynamic> factCheckResponse({
+    required int clusterSize,
+    required double clusterWeight,
+    required bool hasOfficialCorroboration,
+  }) {
+    final verified =
+        hasOfficialCorroboration ? clusterWeight >= 2 : clusterWeight >= 6;
+    return {
+      'is_verified': verified,
+      'confidence': verified ? 0.86 : 0.42,
+      'verdict': verified ? 'verified' : 'needs_more_signals',
+      'publish_recommendation': verified ? 'publish_now' : 'hold_for_more',
+      'reasoning': verified
+          ? 'DEMO_MODE: cluster weight $clusterWeight with ${hasOfficialCorroboration ? "official" : "citizen-only"} corroboration — publish.'
+          : 'DEMO_MODE: cluster too weak ($clusterWeight) without official corroboration. Hold for more signals.',
+    };
+  }
+
   Map<String, dynamic> actionResponse(String sector, String crisisType) => {
         'actions': [
           {
