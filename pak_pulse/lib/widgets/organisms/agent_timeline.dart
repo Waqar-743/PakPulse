@@ -13,15 +13,22 @@ class AgentTimeline extends StatelessWidget {
   final List<AgentStep> steps;
   final bool isLoading;
 
+  /// When true, the timeline sizes itself to its content and does not scroll
+  /// independently — required when it is embedded inside another scroll view
+  /// (e.g. the Crisis Detail "Agent Reasoning" section). Without this the
+  /// inner [ListView] has unbounded height and collapses to nothing.
+  final bool embedded;
+
   const AgentTimeline({
     super.key,
     required this.steps,
     this.isLoading = false,
+    this.embedded = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const _TimelineSkeleton();
+    if (isLoading) return _TimelineSkeleton(embedded: embedded);
 
     final ordered = _orderedAgents
         .map((name) {
@@ -35,6 +42,8 @@ class AgentTimeline extends StatelessWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
+      shrinkWrap: embedded,
+      physics: embedded ? const NeverScrollableScrollPhysics() : null,
       itemCount: ordered.length,
       itemBuilder: (_, i) {
         final step = ordered[i];
@@ -58,6 +67,8 @@ class AgentTimeline extends StatelessWidget {
   static const _orderedAgents = [
     AgentName.signal,
     AgentName.detection,
+    AgentName.verification,
+    AgentName.factCheck,
     AgentName.severity,
     AgentName.action,
   ];
@@ -262,6 +273,8 @@ class _AgentAvatar extends StatelessWidget {
   static const _initials = {
     AgentName.signal: 'S',
     AgentName.detection: 'D',
+    AgentName.verification: 'V',
+    AgentName.factCheck: 'FC',
     AgentName.severity: 'Sv',
     AgentName.action: 'A',
   };
@@ -339,12 +352,15 @@ class _HandoffLine extends StatelessWidget {
 }
 
 class _TimelineSkeleton extends StatelessWidget {
-  const _TimelineSkeleton();
+  final bool embedded;
+  const _TimelineSkeleton({this.embedded = false});
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
+      shrinkWrap: embedded,
+      physics: embedded ? const NeverScrollableScrollPhysics() : null,
       itemCount: 4,
       itemBuilder: (_, __) => Column(
         children: [

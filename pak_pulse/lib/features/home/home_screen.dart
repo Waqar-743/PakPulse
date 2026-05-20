@@ -18,6 +18,8 @@ import '../../widgets/atoms/mono_text.dart';
 import '../../widgets/atoms/severity_chip.dart';
 import '../../widgets/atoms/shimmer_skeleton.dart';
 import '../../widgets/organisms/crisis_map.dart';
+import '../../widgets/organisms/disaster_feed_card.dart';
+import '../../widgets/organisms/notification_banner.dart';
 import '../../widgets/organisms/signal_stream_widget.dart';
 import '../../widgets/pp_chrome.dart';
 
@@ -136,12 +138,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     });
 
+    // Activate the auto-verifier — listens to clustered citizen signals and
+    // runs the 6-agent verification pipeline whenever a new cluster qualifies.
+    ref.watch(autoVerifierProvider);
+
     final crises = ref.watch(crisisListProvider);
     final signals = ref.watch(signalListProvider);
     final activeCrises = crises.where((c) => c.isActive).toList();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundBase,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/chat'),
+        backgroundColor: AppColors.signalBlue,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.chat_bubble_outline, size: 18),
+        label: const Text('Ask',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+      ),
       body: Stack(
         children: [
           const PPOrbs(),
@@ -156,15 +170,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // ── Verified-crisis notification banner ─────────────
+                        const NotificationBanner(),
                         // ── Hero Alert Card ─────────────────────────────────
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                           child: activeCrises.isEmpty
-                              ? const ShimmerSkeleton(
-                                  width: double.infinity,
-                                  height: 200,
-                                  radius: 22,
-                                )
+                              ? const _AllClearCard().animate(delay: 100.ms).fadeIn(
+                                    duration: 700.ms,
+                                    curve: Cubic(0.32, 0.72, 0, 1),
+                                  )
                               : _HeroAlertCard(crisis: activeCrises.first)
                                   .animate(delay: 100.ms)
                                   .fadeIn(
@@ -317,6 +332,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         )
                             .animate(delay: 600.ms)
+                            .fadeIn(
+                              duration: 700.ms,
+                              curve: Cubic(0.32, 0.72, 0, 1),
+                            ),
+                        const SizedBox(height: 16),
+                        // ── Regional Disaster Feed (GDACS — live) ────────────
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          child: PPSectionHeader(
+                            kicker: 'GLOBAL · DISASTER WATCH',
+                            title: 'Regional Flood Watch',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          child: const DisasterFeedCard(),
+                        )
+                            .animate(delay: 650.ms)
                             .fadeIn(
                               duration: 700.ms,
                               curve: Cubic(0.32, 0.72, 0, 1),
@@ -686,6 +722,94 @@ class _HeroAlertCard extends StatelessWidget {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
+  }
+}
+
+// ── All Clear Card ────────────────────────────────────────────────────────────
+
+class _AllClearCard extends ConsumerWidget {
+  const _AllClearCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.low.withOpacity(0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.low.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.low.withOpacity(0.12),
+                  border: Border.all(color: AppColors.low.withOpacity(0.4)),
+                ),
+                child: const Icon(Icons.check_rounded,
+                    color: AppColors.low, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PPEyebrow('● ALL CLEAR · NO ACTIVE CRISES',
+                        color: AppColors.low),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Situation Normal',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.4,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'No active crises detected by the AI pipeline. '
+            'Use the Signal Inbox to submit a new report, or tap ADD SIGNAL below.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text(
+              'کوئی فعال بحران نہیں — صورتحال معمول کے مطابق ہے',
+              style: GoogleFonts.notoNastaliqUrdu(
+                fontSize: 13,
+                height: 1.9,
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

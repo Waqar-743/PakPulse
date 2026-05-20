@@ -45,16 +45,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeModeProvider);
-    final isDark = themeMode == ThemeMode.dark;
     final demoMode = ref.watch(demoModeProvider);
+    final themeMode = ref.watch(themeModeProvider);
     final autoPlay = ref.watch(autoPlayProvider);
     final speed = ref.watch(playbackSpeedProvider);
     final locale = ref.watch(appLocaleProvider);
     final userLocation = ref.watch(userLocationProvider);
 
-    final apiKey = dotenv.maybeGet('LLM_API_KEY') ?? '';
-    final apiConnected = apiKey.isNotEmpty;
+    final geminiKey = (dotenv.maybeGet('GEMINI_API_KEY') ?? '').trim();
+    final anthropicKey = (dotenv.maybeGet('LLM_API_KEY') ?? '').trim();
+    final apiConnected = geminiKey.isNotEmpty || anthropicKey.isNotEmpty;
+    final apiProviderLabel = geminiKey.isNotEmpty
+        ? 'Gemini connected'
+        : anthropicKey.isNotEmpty
+            ? 'Claude connected'
+            : 'Not configured';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundBase,
@@ -104,7 +109,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           _SectionLabel(label: 'APPEARANCE'),
           SwitchListTile(
-            value: isDark,
+            value: themeMode == ThemeMode.dark,
             onChanged: (v) {
               Haptics.light();
               ref.read(themeModeProvider.notifier).state =
@@ -113,11 +118,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             activeColor: AppColors.signalBlue,
             title: const Text('Dark Mode'),
             subtitle: Text(
-              isDark ? 'Dark theme active' : 'Light theme active',
+              themeMode == ThemeMode.dark ? 'Dark theme active' : 'Light theme active',
               style: AppTypography.bodyMedium,
             ),
             secondary: Icon(
-              isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+              themeMode == ThemeMode.dark
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined,
             ),
           ),
 
@@ -188,7 +195,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  apiConnected ? 'Connected' : 'Not configured',
+                  apiProviderLabel,
                   style: AppTypography.bodyMedium.copyWith(
                     color:
                         apiConnected ? AppColors.low : AppColors.critical,

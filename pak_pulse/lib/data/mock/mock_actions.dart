@@ -1,16 +1,16 @@
-﻿import '../models/crisis_action.dart';
+import '../models/crisis_action.dart';
 import '../../core/constants/crisis_types.dart';
 
 class MockActions {
   MockActions._();
 
-  // â”€â”€ G-10 FLOOD ACTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── G-10 FLOOD ACTIONS ──────────────────────────────────────────────────────
 
   static const CrisisAction floodTicket = CrisisAction(
     id: 'act_f01',
     type: ActionType.ticket,
     status: ActionStatus.pending,
-    title: 'Dispatch Rescue 1122 â€” G-10 Flood',
+    title: 'Dispatch Rescue 1122 — G-10 Flood',
     description:
         'Create emergency rescue ticket for G-10 Markaz flooding. Deploy 2 rescue boats and 8 personnel to G-10 Main Market road.',
     targetAgency: 'Rescue 1122 Islamabad',
@@ -30,7 +30,7 @@ class MockActions {
     id: 'act_f02',
     type: ActionType.reroute,
     status: ActionStatus.pending,
-    title: 'Reroute Traffic â€” Service Road Eastern',
+    title: 'Reroute Traffic — Service Road Eastern',
     description:
         'Block G-10 Main Market entry. Divert all inbound traffic via Service Road Eastern. Estimated 8-minute delay added to alternate route.',
     targetAgency: 'Islamabad Traffic Police (ITP)',
@@ -48,7 +48,7 @@ class MockActions {
     id: 'act_f03',
     type: ActionType.alert,
     status: ActionStatus.pending,
-    title: 'Bilingual SMS Alert â€” G-10 Residents',
+    title: 'Bilingual SMS Alert — G-10 Residents',
     description:
         'Send emergency SMS alert in English and Urdu to 45,000 registered mobile numbers in G-10/G-11 sectors warning of flash flooding.',
     targetAgency: 'NDMA Emergency Communication Cell',
@@ -58,16 +58,16 @@ class MockActions {
       'channels': ['sms', 'push'],
     },
     mockResponse:
-        '{"status":"sent","recipients":45000,"message_en":"EMERGENCY: Flash flooding in G-10. Avoid area. Move to higher ground.","message_ur":"ÛÙ†Ú¯Ø§Ù…ÛŒ Ø§Ø·Ù„Ø§Ø¹: Ø¬ÛŒ-10 Ù…ÛŒÚº Ø³ÛŒÙ„Ø§Ø¨ Ø¢ Ú¯ÛŒØ§ ÛÛ’Û” Ø¹Ù„Ø§Ù‚Û Ú†Ú¾ÙˆÚ‘ Ø¯ÛŒÚºÛ”"}',
+        '{"status":"sent","recipients":45000,"message_en":"EMERGENCY: Flash flooding in G-10. Avoid area. Move to higher ground.","message_ur":"ہنگامی الرٹ: جی-10 میں اچانک سیلاب۔ علاقے سے گریز کریں اور بلند جگہ پر منتقل ہوں۔"}',
   );
 
-  // â”€â”€ JACOBABAD HEATWAVE ACTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── JACOBABAD HEATWAVE ACTIONS ──────────────────────────────────────────────
 
   static const CrisisAction heatTicket = CrisisAction(
     id: 'act_h01',
     type: ActionType.ticket,
     status: ActionStatus.pending,
-    title: 'Activate NDMA Cooling Centers â€” Jacobabad',
+    title: 'Activate NDMA Cooling Centers — Jacobabad',
     description:
         'Emergency ticket to NDMA for immediate activation of 5 cooling centers across Jacobabad district. Provide chilled water, fans, and medical staff.',
     targetAgency: 'NDMA Sindh Provincial Office',
@@ -86,7 +86,7 @@ class MockActions {
     id: 'act_h02',
     type: ActionType.dispatch,
     status: ActionStatus.pending,
-    title: 'Deploy Mobile Medical Units â€” Jacobabad',
+    title: 'Deploy Mobile Medical Units — Jacobabad',
     description:
         'Dispatch 3 PDMA mobile medical units with IV fluids and cooling equipment to Jacobabad city center and surrounding villages.',
     targetAgency: 'PDMA Sindh',
@@ -104,9 +104,9 @@ class MockActions {
     id: 'act_h03',
     type: ActionType.alert,
     status: ActionStatus.pending,
-    title: 'Heat Advisory Broadcast â€” Sindh Province',
+    title: 'Heat Advisory Broadcast — Sindh Province',
     description:
-        'Broadcast bilingual heat advisory across Sindh province via SMS and radio. Warn residents to stay indoors between 11amâ€“5pm and visit cooling centers.',
+        'Broadcast bilingual heat advisory across Sindh province via SMS and radio. Warn residents to stay indoors between 11am–5pm and visit cooling centers.',
     targetAgency: 'PMD Karachi',
     payload: {
       'region': 'Sindh Province',
@@ -114,16 +114,16 @@ class MockActions {
       'recipient_count': 850000,
     },
     mockResponse:
-        '{"status":"broadcast","recipients":850000,"message_en":"HEAT ADVISORY: Temperature 51Â°C in Jacobabad. Stay indoors 11am-5pm. Visit cooling centers.","message_ur":"Ú¯Ø±Ù…ÛŒ Ú©ÛŒ ÙˆØ§Ø±Ù†Ù†Ú¯: Ø¬ÛŒÚ©Ø¨ Ø¢Ø¨Ø§Ø¯ Ù…ÛŒÚº Ø¯Ø±Ø¬Û Ø­Ø±Ø§Ø±Øª 51 ÚˆÚ¯Ø±ÛŒÛ” Ú¯Ú¾Ø± Ú©Û’ Ø§Ù†Ø¯Ø± Ø±ÛÛŒÚºÛ”"}',
+        '{"status":"broadcast","recipients":850000,"message_en":"HEAT ADVISORY: Temperature 51C in Jacobabad. Stay indoors 11am-5pm. Visit cooling centers.","message_ur":"ہیٹ ایڈوائزری: جیکب آباد میں درجہ حرارت 51 ڈگری۔ صبح 11 سے شام 5 بجے تک گھر کے اندر رہیں۔"}',
   );
 
-  // â”€â”€ FAIZABAD PROTEST ACTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── FAIZABAD PROTEST ACTIONS ────────────────────────────────────────────────
 
   static const CrisisAction protestTicket = CrisisAction(
     id: 'act_p01',
     type: ActionType.ticket,
     status: ActionStatus.pending,
-    title: 'ITP Emergency Deployment â€” Faizabad',
+    title: 'ITP Emergency Deployment — Faizabad',
     description:
         'Create ITP emergency ticket to deploy 40 traffic officers at Faizabad Interchange. Establish manual traffic control at Committee Chowk and 9th Avenue.',
     targetAgency: 'Islamabad Traffic Police (ITP)',
@@ -143,7 +143,7 @@ class MockActions {
     status: ActionStatus.pending,
     title: 'Reroute Traffic via 9th Avenue',
     description:
-        'Close Faizabad Interchange to all non-emergency vehicles. Divert Rawalpindiâ€“Islamabad traffic via 9th Avenue. Add 15 minutes to travel time.',
+        'Close Faizabad Interchange to all non-emergency vehicles. Divert Rawalpindi–Islamabad traffic via 9th Avenue. Add 15 minutes to travel time.',
     targetAgency: 'Islamabad Traffic Police (ITP)',
     payload: {
       'blocked_route': 'Faizabad Interchange',
@@ -159,7 +159,7 @@ class MockActions {
     id: 'act_p03',
     type: ActionType.alert,
     status: ActionStatus.pending,
-    title: 'Public Road Closure Alert â€” Faizabad',
+    title: 'Public Road Closure Alert — Faizabad',
     description:
         'Send bilingual SMS alert to residents of G-7 through G-11 and Rawalpindi Saddar warning of Faizabad blockage and advising alternate routes.',
     targetAgency: 'NDMA Emergency Communication Cell',
@@ -168,7 +168,7 @@ class MockActions {
       'recipient_count': 120000,
     },
     mockResponse:
-        '{"status":"sent","recipients":120000,"message_en":"ROAD CLOSURE: Faizabad Interchange blocked. Use 9th Avenue alternate route.","message_ur":"Ø³Ú‘Ú© Ø¨Ù†Ø¯: ÙÛŒØ¶ Ø¢Ø¨Ø§Ø¯ Ø§Ù†Ù¹Ø±Ú†ÛŒÙ†Ø¬ Ø¨Ù†Ø¯ ÛÛ’Û” Ù†ÙˆÛŒÚº Ø§ÛŒÙˆÙ†ÛŒÙˆ Ø§Ø³ØªØ¹Ù…Ø§Ù„ Ú©Ø±ÛŒÚºÛ”"}',
+        '{"status":"sent","recipients":120000,"message_en":"ROAD CLOSURE: Faizabad Interchange blocked. Use 9th Avenue alternate route.","message_ur":"سڑک بندش: فیض آباد انٹرچینج بند ہے۔ متبادل راستے کے طور پر نویں ایونیو استعمال کریں۔"}',
   );
 
   static List<CrisisAction> get floodActions =>
@@ -180,4 +180,3 @@ class MockActions {
   static List<CrisisAction> get protestActions =>
       [protestTicket, protestReroute, protestAlert];
 }
-

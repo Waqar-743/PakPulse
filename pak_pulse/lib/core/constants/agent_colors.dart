@@ -11,6 +11,10 @@ class AgentColors {
         return AppColors.agentSignal;
       case AgentName.detection:
         return AppColors.agentDetection;
+      case AgentName.verification:
+        return AppColors.agentVerification;
+      case AgentName.factCheck:
+        return AppColors.agentFactCheck;
       case AgentName.severity:
         return AppColors.agentSeverity;
       case AgentName.action:

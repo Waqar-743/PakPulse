@@ -35,6 +35,11 @@ class LiveConditionsService {
           'longitude': longitude,
           'current':
               'temperature_2m,precipitation,rain,relative_humidity_2m,weather_code',
+          // Two days of daily forecast — index 1 is tomorrow, used to
+          // assess next-day heatwave and flood risk.
+          'daily':
+              'temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max',
+          'forecast_days': 2,
           'timezone': 'auto',
         },
       );
@@ -64,6 +69,24 @@ class LiveConditionsService {
       // Open-Meteo reports `precipitation` in mm over the last hour by default.
       final rainOrPrecip = readDouble('precipitation');
 
+      // ── Next-day forecast (daily arrays — index 1 = tomorrow) ──────────────
+      final daily = response.data!['daily'] as Map<String, dynamic>?;
+
+      double? dailyAt(String key, int index) {
+        final list = daily?[key];
+        if (list is List && list.length > index) {
+          final v = list[index];
+          if (v is num) return v.toDouble();
+        }
+        return null;
+      }
+
+      DateTime? forecastDate;
+      final dates = daily?['time'];
+      if (dates is List && dates.length > 1 && dates[1] is String) {
+        forecastDate = DateTime.tryParse(dates[1] as String);
+      }
+
       return LiveConditions(
         latitude: latitude,
         longitude: longitude,
@@ -73,6 +96,11 @@ class LiveConditionsService {
         weatherCode: readInt('weather_code'),
         observedAt: readTime(),
         attribution: 'Open-Meteo',
+        forecastMaxTempC: dailyAt('temperature_2m_max', 1),
+        forecastMinTempC: dailyAt('temperature_2m_min', 1),
+        forecastPrecipMm: dailyAt('precipitation_sum', 1),
+        forecastPrecipProbability: dailyAt('precipitation_probability_max', 1),
+        forecastDate: forecastDate,
       );
     } catch (_) {
       return null;

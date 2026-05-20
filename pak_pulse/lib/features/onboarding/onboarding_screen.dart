@@ -140,10 +140,12 @@ class _PageOne extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Heatwave gradient — Pakistan is in extreme-heat season May–June.
+    // Inner ring: orange (moderate heat), outer rings escalate to critical red.
     final colors = [
-      AppColors.signalBlue,
-      AppColors.protestViolet,
-      AppColors.critical
+      AppColors.moderate,      // 38°C zone — yellow-amber
+      AppColors.heatOrange,    // 45°C zone — deep orange
+      AppColors.critical,      // 50°C+ zone — red alert
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -188,20 +190,20 @@ class _PageOne extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: AppColors.surfaceElevated,
                     border: Border.all(
-                        color: AppColors.critical
-                            .withOpacity(0.4)),
+                        color: AppColors.heatOrange
+                            .withOpacity(0.5)),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.critical
-                            .withOpacity(0.3),
-                        blurRadius: 20,
-                        spreadRadius: 2,
+                        color: AppColors.heatOrange
+                            .withOpacity(0.35),
+                        blurRadius: 24,
+                        spreadRadius: 4,
                       ),
                     ],
                   ),
                   child: const Icon(
-                    Icons.crisis_alert,
-                    color: AppColors.critical,
+                    Icons.local_fire_department,
+                    color: AppColors.heatOrange,
                     size: 32,
                   ),
                 ),
