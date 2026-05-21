@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+// `hide Path` — latlong2 exports a Path class that collides with dart:ui.Path
+// used by the marker CustomPainter below.
+import 'package:latlong2/latlong.dart' hide Path;
 
 import '../../core/constants/agent_colors.dart';
 import '../../core/constants/crisis_types.dart';
@@ -14,18 +16,16 @@ import '../../data/models/crisis.dart';
 import '../../data/services/places_service.dart';
 import '../../providers.dart';
 
-/// Live Google Maps view for PakPulse.
+/// Interactive OpenStreetMap view for PAK·PULSE (via `flutter_map`).
 ///
-/// Renders a real interactive [GoogleMap] with:
-///  • the traffic layer enabled (real-time congestion),
+/// Renders a real, no-API-key map with:
+///  • OSM raster tiles (CartoDB Voyager light theme),
 ///  • the camera centred on the user's stored city,
-///  • a red semi-transparent polygon over the G-10 crisis sector,
+///  • a red semi-transparent polygon over the active crisis sector,
 ///  • a pulsing red halo at the crisis epicentre,
-///  • a green alternate-route polyline,
-///  • blue markers for nearby emergency services (Google Places, with a
-///    curated fallback when no API key is configured).
-///
-/// Tapping any marker opens a bottom-sheet detail card.
+///  • a green recommended alternate-route polyline,
+///  • blue markers for nearby emergency services,
+///  • pinch-zoom, pan, and tap-for-detail bottom sheets.
 class CrisisMap extends ConsumerStatefulWidget {
   final List<Crisis> crises;
   final void Function(Crisis)? onMarkerTap;
@@ -48,6 +48,19 @@ class CrisisMap extends ConsumerStatefulWidget {
 
 class _CrisisMapState extends ConsumerState<CrisisMap>
     with SingleTickerProviderStateMixin {
+  // ── Pakistan heatmap cities (shown when no active crises) ─────────────────
+  static const List<(String, double, double)> _heatCities = [
+    ('Islamabad',  33.6844, 73.0479),
+    ('Lahore',     31.5204, 74.3587),
+    ('Karachi',    24.8607, 67.0011),
+    ('Peshawar',   34.0151, 71.5249),
+    ('Quetta',     30.1798, 66.9750),
+    ('Multan',     30.1575, 71.5249),
+    ('Jacobabad',  28.2769, 68.4511),
+    ('Faisalabad', 31.4188, 73.0791),
+    ('Hyderabad',  25.3960, 68.3578),
+  ];
+
   // ── Demo crisis sector — G-10, Islamabad ───────────────────────────────────
   static const LatLng _g10Center = LatLng(33.6900, 73.0228);
 
@@ -67,10 +80,22 @@ class _CrisisMapState extends ConsumerState<CrisisMap>
     LatLng(33.6985, 73.0392),
   ];
 
-  GoogleMapController? _controller;
+  final MapController _controller = MapController();
   late final AnimationController _pulseCtrl;
   List<EmergencyPlace> _places = const [];
   bool _centeredOnUser = false;
+
+  String get _tileUrl {
+    final raw = dotenv.maybeGet('MAP_TILE_URL') ??
+        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+    // flutter_map only honours {r} with retinaMode; strip it for a plain URL.
+    return raw.replaceAll('{r}', '');
+  }
+
+  List<String> get _tileSubdomains {
+    final raw = dotenv.maybeGet('MAP_TILE_SUBDOMAINS') ?? 'a,b,c,d';
+    return raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  }
 
   @override
   void initState() {
@@ -88,7 +113,7 @@ class _CrisisMapState extends ConsumerState<CrisisMap>
   @override
   void dispose() {
     _pulseCtrl.dispose();
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -105,8 +130,10 @@ class _CrisisMapState extends ConsumerState<CrisisMap>
 
   LatLng get _initialTarget {
     if (widget.center != null) return widget.center!;
-    // A single-crisis map (detail view) frames that crisis; the overview
-    // map opens on the user's stored city.
+    if (widget.crises.isEmpty) {
+      // No active crises — zoom out to show all of Pakistan for the heatmap.
+      return const LatLng(30.3753, 69.3451);
+    }
     if (widget.crises.length == 1) {
       return LatLng(widget.crises.first.lat, widget.crises.first.lng);
     }
@@ -114,51 +141,182 @@ class _CrisisMapState extends ConsumerState<CrisisMap>
     return loc != null ? LatLng(loc.lat, loc.lng) : _g10Center;
   }
 
+  double get _initialZoom {
+    if (widget.crises.isEmpty) return 5.0;
+    return widget.zoom;
+  }
+
   void _maybeCenterOnUser() {
     if (_centeredOnUser) return;
     if (widget.center != null || widget.crises.length == 1) return;
     final loc = ref.read(userLocationProvider);
-    if (loc != null && _controller != null) {
+    if (loc != null) {
       _centeredOnUser = true;
-      _controller!.animateCamera(
-        CameraUpdate.newLatLng(LatLng(loc.lat, loc.lng)),
-      );
+      _controller.move(LatLng(loc.lat, loc.lng), widget.zoom);
     }
   }
 
   // ── Map layers ──────────────────────────────────────────────────────────────
 
-  double _crisisHue(Crisis c) {
-    switch (c.type) {
-      case CrisisType.flood:
-        return BitmapDescriptor.hueAzure;
-      case CrisisType.heatwave:
-        return BitmapDescriptor.hueOrange;
-      case CrisisType.protest:
-        return BitmapDescriptor.hueViolet;
-    }
+  Polygon get _crisisZonePolygon => Polygon(
+        points: _g10Sector,
+        isFilled: true,
+        color: AppColors.critical.withOpacity(0.22),
+        borderColor: AppColors.critical.withOpacity(0.8),
+        borderStrokeWidth: 2,
+      );
+
+  Polyline get _alternateRoutePolyline => Polyline(
+        points: _alternateRoute,
+        color: AppColors.low,
+        strokeWidth: 5,
+      );
+
+  /// Returns a temperature-to-colour mapping used by the heatmap.
+  static Color _tempColor(double tempC) {
+    if (tempC >= 48) return const Color(0xFFCC0000);   // extreme — dark red
+    if (tempC >= 44) return AppColors.critical;          // critical — red
+    if (tempC >= 40) return AppColors.heatOrange;        // high — orange
+    if (tempC >= 36) return AppColors.high;              // elevated — amber
+    if (tempC >= 30) return AppColors.moderate;          // moderate — yellow
+    if (tempC >= 24) return AppColors.low;               // normal — green
+    return AppColors.signalBlue;                         // cool — blue
   }
 
-  Set<Marker> _buildMarkers() {
-    final markers = <Marker>{};
+  List<CircleMarker> _buildCircles() {
+    final circles = <CircleMarker>[];
+
+    if (widget.crises.isEmpty) {
+      // ── Heatmap mode — temperature bubbles over Pakistan cities ─────────
+      for (final city in _heatCities) {
+        final key = LatLngKey(city.$2, city.$3);
+        final async = ref.watch(liveConditionsProvider(key));
+        async.whenData((cond) {
+          if (cond == null) return;
+          final color = _tempColor(cond.temperatureC);
+          circles.add(CircleMarker(
+            point: LatLng(city.$2, city.$3),
+            radius: 60000, // 60 km radius bubble
+            useRadiusInMeter: true,
+            color: color.withOpacity(0.28),
+            borderColor: color.withOpacity(0.70),
+            borderStrokeWidth: 2,
+          ));
+        });
+        // Show a placeholder bubble while loading
+        if (async.isLoading) {
+          circles.add(CircleMarker(
+            point: LatLng(city.$2, city.$3),
+            radius: 60000,
+            useRadiusInMeter: true,
+            color: AppColors.borderSubtle.withOpacity(0.20),
+            borderColor: AppColors.borderSubtle.withOpacity(0.50),
+            borderStrokeWidth: 1,
+          ));
+        }
+      }
+      return circles;
+    }
+
+    // ── Crisis mode — pulsing halo + affected-radius rings ────────────────
+    final epicentre = widget.crises.first;
+    final epLatLng = LatLng(epicentre.lat, epicentre.lng);
+    final t = _pulseCtrl.value;
+    circles.add(
+      CircleMarker(
+        point: epLatLng,
+        radius: 130 + t * 280,
+        useRadiusInMeter: true,
+        color: AppColors.critical.withOpacity((1 - t) * 0.30),
+        borderColor: AppColors.critical.withOpacity((1 - t) * 0.9),
+        borderStrokeWidth: 2,
+      ),
+    );
+
+    if (widget.showRadius) {
+      for (final c in widget.crises) {
+        circles.add(
+          CircleMarker(
+            point: LatLng(c.lat, c.lng),
+            radius: c.affectedRadiusMeters.toDouble(),
+            useRadiusInMeter: true,
+            color: AgentColors.forCrisis(c.type).withOpacity(0.08),
+            borderColor: AgentColors.forCrisis(c.type).withOpacity(0.35),
+            borderStrokeWidth: 1,
+          ),
+        );
+      }
+    }
+    return circles;
+  }
+
+  List<Marker> _buildMarkers() {
+    final markers = <Marker>[];
+
+    if (widget.crises.isEmpty) {
+      // ── Heatmap city labels ──────────────────────────────────────────────
+      for (final city in _heatCities) {
+        final key = LatLngKey(city.$2, city.$3);
+        final async = ref.watch(liveConditionsProvider(key));
+        final tempStr = async.whenOrNull(
+              data: (c) => c != null ? '${c.temperatureC.round()}°' : null,
+            ) ?? '…';
+        final color = async.whenOrNull(
+              data: (c) => c != null ? _tempColor(c.temperatureC) : AppColors.textTertiary,
+            ) ?? AppColors.textTertiary;
+        markers.add(Marker(
+          point: LatLng(city.$2, city.$3),
+          width: 80,
+          height: 44,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated.withOpacity(0.88),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: color.withOpacity(0.5)),
+                ),
+                child: Text(
+                  '${city.$1}\n$tempStr',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
+      return markers;
+    }
 
     for (var i = 0; i < widget.crises.length; i++) {
       final c = widget.crises[i];
       // The first (most urgent) crisis is the epicentre — always red.
-      final hue = i == 0 ? BitmapDescriptor.hueRed : _crisisHue(c);
+      final color =
+          i == 0 ? AppColors.critical : AgentColors.forCrisis(c.type);
       markers.add(
         Marker(
-          markerId: MarkerId('crisis_${c.id}'),
-          position: LatLng(c.lat, c.lng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-          infoWindow: InfoWindow(title: c.title, snippet: c.sector),
-          onTap: () {
-            if (widget.onMarkerTap != null) {
-              widget.onMarkerTap!(c);
-            } else {
-              _showCrisisSheet(c);
-            }
-          },
+          point: LatLng(c.lat, c.lng),
+          width: 44,
+          height: 44,
+          alignment: Alignment.topCenter,
+          child: GestureDetector(
+            onTap: () {
+              if (widget.onMarkerTap != null) {
+                widget.onMarkerTap!(c);
+              } else {
+                _showCrisisSheet(c);
+              }
+            },
+            child: _MapPin(color: color, icon: _iconFor(c.type)),
+          ),
         ),
       );
     }
@@ -167,77 +325,28 @@ class _CrisisMapState extends ConsumerState<CrisisMap>
       final p = _places[i];
       markers.add(
         Marker(
-          markerId: MarkerId('place_$i'),
-          position: LatLng(p.lat, p.lng),
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          infoWindow: InfoWindow(title: p.name, snippet: p.type),
-          onTap: () => _showPlaceSheet(p),
+          point: LatLng(p.lat, p.lng),
+          width: 30,
+          height: 30,
+          child: GestureDetector(
+            onTap: () => _showPlaceSheet(p),
+            child: _ServiceDot(),
+          ),
         ),
       );
     }
     return markers;
   }
 
-  Set<Polygon> _buildPolygons() => {
-        // Red semi-transparent crisis-zone polygon over the G-10 sector.
-        Polygon(
-          polygonId: const PolygonId('g10_crisis_zone'),
-          points: _g10Sector,
-          fillColor: AppColors.critical.withOpacity(0.22),
-          strokeColor: AppColors.critical.withOpacity(0.8),
-          strokeWidth: 2,
-        ),
-      };
-
-  Set<Polyline> _buildPolylines() => {
-        // Green recommended alternate route.
-        Polyline(
-          polylineId: const PolylineId('alternate_route'),
-          points: _alternateRoute,
-          color: AppColors.low,
-          width: 5,
-          patterns: [PatternItem.dash(28), PatternItem.gap(14)],
-        ),
-      };
-
-  Set<Circle> _buildCircles() {
-    final circles = <Circle>{};
-
-    // Pulsing red halo at the crisis epicentre.
-    final epicentre =
-        widget.crises.isNotEmpty ? widget.crises.first : null;
-    final epLatLng = epicentre != null
-        ? LatLng(epicentre.lat, epicentre.lng)
-        : _g10Center;
-    final t = _pulseCtrl.value;
-    circles.add(
-      Circle(
-        circleId: const CircleId('epicentre_pulse'),
-        center: epLatLng,
-        radius: 130 + t * 280,
-        fillColor: AppColors.critical.withOpacity((1 - t) * 0.30),
-        strokeColor: AppColors.critical.withOpacity((1 - t) * 0.9),
-        strokeWidth: 2,
-      ),
-    );
-
-    // Static affected-radius rings.
-    if (widget.showRadius) {
-      for (final c in widget.crises) {
-        circles.add(
-          Circle(
-            circleId: CircleId('radius_${c.id}'),
-            center: LatLng(c.lat, c.lng),
-            radius: c.affectedRadiusMeters.toDouble(),
-            fillColor: AgentColors.forCrisis(c.type).withOpacity(0.08),
-            strokeColor: AgentColors.forCrisis(c.type).withOpacity(0.35),
-            strokeWidth: 1,
-          ),
-        );
-      }
+  IconData _iconFor(CrisisType type) {
+    switch (type) {
+      case CrisisType.flood:
+        return Icons.water_drop;
+      case CrisisType.heatwave:
+        return Icons.local_fire_department;
+      case CrisisType.protest:
+        return Icons.groups;
     }
-    return circles;
   }
 
   // ── Detail bottom sheets ────────────────────────────────────────────────────
@@ -353,27 +462,119 @@ class _CrisisMapState extends ConsumerState<CrisisMap>
     // Re-centre once the stored location resolves (overview map only).
     ref.listen(userLocationProvider, (_, __) => _maybeCenterOnUser());
 
-    return GoogleMap(
-      initialCameraPosition:
-          CameraPosition(target: _initialTarget, zoom: widget.zoom),
-      // Real-time congestion overlay.
-      trafficEnabled: true,
-      mapType: MapType.normal,
-      compassEnabled: true,
-      zoomControlsEnabled: false,
-      myLocationButtonEnabled: false,
-      markers: _buildMarkers(),
-      polygons: _buildPolygons(),
-      polylines: _buildPolylines(),
-      circles: _buildCircles(),
-      // Let the map win pinch / pan gestures even inside a scroll view.
-      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-        Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
-      },
-      onMapCreated: (c) {
-        _controller = c;
-        _maybeCenterOnUser();
-      },
+    return FlutterMap(
+      mapController: _controller,
+      options: MapOptions(
+        initialCenter: _initialTarget,
+        initialZoom: _initialZoom,
+        minZoom: 4,
+        maxZoom: 18,
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.pinchZoom |
+              InteractiveFlag.drag |
+              InteractiveFlag.doubleTapZoom |
+              InteractiveFlag.flingAnimation,
+        ),
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: _tileUrl,
+          subdomains: _tileSubdomains,
+          userAgentPackageName: 'com.pakpulse.app',
+          maxZoom: 19,
+        ),
+        if (widget.crises.isNotEmpty) ...[
+          PolygonLayer(polygons: [_crisisZonePolygon]),
+          PolylineLayer(polylines: [_alternateRoutePolyline]),
+        ],
+        CircleLayer(circles: _buildCircles()),
+        MarkerLayer(markers: _buildMarkers()),
+        // OSM attribution — required by the tile provider's usage policy.
+        const RichAttributionWidget(
+          alignment: AttributionAlignment.bottomRight,
+          attributions: [
+            TextSourceAttribution('OpenStreetMap contributors'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Marker widgets ────────────────────────────────────────────────────────────
+
+class _MapPin extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  const _MapPin({required this.color, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2.5),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.5),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 16),
+        ),
+        // Little pointer triangle.
+        CustomPaint(
+          size: const Size(12, 8),
+          painter: _PinTailPainter(color),
+        ),
+      ],
+    );
+  }
+}
+
+class _PinTailPainter extends CustomPainter {
+  final Color color;
+  const _PinTailPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_PinTailPainter old) => old.color != color;
+}
+
+class _ServiceDot extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.signalBlue,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.signalBlue.withOpacity(0.5),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: const Icon(Icons.local_hospital, color: Colors.white, size: 14),
     );
   }
 }

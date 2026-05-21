@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'features/agent_trace/agent_trace_screen.dart';
+import 'features/chat/chat_screen.dart';
 import 'features/crisis_detail/crisis_detail_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -82,6 +83,11 @@ final GoRouter appRouter = GoRouter(
       path: '/history',
       name: 'history',
       pageBuilder: (_, __) => _sharedAxisPage(const HistoryScreen()),
+    ),
+    GoRoute(
+      path: '/chat',
+      name: 'chat',
+      pageBuilder: (_, __) => _sharedAxisPage(const ChatScreen()),
     ),
   ],
 );

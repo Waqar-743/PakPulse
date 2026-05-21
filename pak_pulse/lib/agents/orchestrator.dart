@@ -11,8 +11,11 @@ import '../data/services/llm_client.dart';
 import '../providers.dart';
 import 'action_agent.dart';
 import 'detection_agent.dart';
+import 'fact_check_agent.dart';
 import 'severity_agent.dart';
 import 'signal_agent.dart';
+import 'signal_clusterer.dart';
+import 'verification_agent.dart';
 
 const _uuid = Uuid();
 
@@ -20,6 +23,7 @@ enum OrchestratorPhase {
   agentStarted,
   agentCompleted,
   pipelineComplete,
+  pipelineRejected,
   failed,
 }
 
@@ -46,6 +50,212 @@ class Orchestrator {
 
   final LlmClient llmClient;
   final Ref ref;
+
+  /// Cluster-aware verification pipeline. Used when 2+ citizen signals fuse
+  /// into a single candidate event. Runs the full 6-agent chain:
+  /// Signal → Detection → Verification → FactCheck → Severity → Action.
+  /// Only publishes a crisis when the FactCheckAgent verifies it.
+  Stream<OrchestratorEvent> runClusterPipeline(SignalCluster cluster) async* {
+    final trace = <AgentStep>[];
+
+    final signalAgent = SignalAgent(llmClient: llmClient);
+    final detectionAgent = DetectionAgent(
+      llmClient: llmClient,
+      recentSignals: ref.read(signalListProvider),
+      activeCrises: ref.read(crisisListProvider),
+    );
+    final verificationAgent = VerificationAgent(
+      llmClient: llmClient,
+      trafficService: ref.read(trafficServiceProvider),
+      disasterNewsService: ref.read(disasterNewsServiceProvider),
+    );
+    final factCheckAgent = FactCheckAgent(llmClient: llmClient);
+    final severityAgent = SeverityAgent(llmClient: llmClient);
+    final actionAgent = ActionAgent(llmClient: llmClient);
+
+    try {
+      // 1. SIGNAL — normalize the representative report in the cluster.
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentStarted,
+        agent: AgentName.signal,
+        trace: List.unmodifiable(trace),
+      );
+      final signalResult =
+          await signalAgent.run({'raw_text': cluster.representativeText});
+      trace.add(signalResult.step);
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentCompleted,
+        agent: AgentName.signal,
+        step: signalResult.step,
+        trace: List.unmodifiable(trace),
+      );
+
+      // Override the LLM's sector guess with the cluster's actual sector —
+      // the cluster was already grouped by exact sector, so it's authoritative.
+      signalResult.output['sector'] = cluster.sector;
+      signalResult.output['crisis_hint'] = cluster.crisisType.name;
+
+      // 2. DETECTION
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentStarted,
+        agent: AgentName.detection,
+        trace: List.unmodifiable(trace),
+      );
+      final detectionResult = await detectionAgent.run({
+        'sector': cluster.sector,
+        'crisis_hint': cluster.crisisType.name,
+      });
+      // Replace the LLM's signal count with the real cluster size.
+      detectionResult.output['signal_count_in_cluster'] = cluster.size;
+      trace.add(detectionResult.step);
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentCompleted,
+        agent: AgentName.detection,
+        step: detectionResult.step,
+        trace: List.unmodifiable(trace),
+      );
+
+      // 3. VERIFICATION — pull TomTom + GDACS corroboration.
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentStarted,
+        agent: AgentName.verification,
+        trace: List.unmodifiable(trace),
+      );
+      final lat = (signalResult.output['lat_hint'] is num)
+          ? (signalResult.output['lat_hint'] as num).toDouble()
+          : 33.69;
+      final lng = (signalResult.output['lng_hint'] is num)
+          ? (signalResult.output['lng_hint'] as num).toDouble()
+          : 73.0228;
+      final verificationResult = await verificationAgent.run({
+        'sector': cluster.sector,
+        'crisis_type': cluster.crisisType.name,
+        'cluster_size': cluster.size,
+        'lat': lat,
+        'lng': lng,
+      });
+      trace.add(verificationResult.step);
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentCompleted,
+        agent: AgentName.verification,
+        step: verificationResult.step,
+        trace: List.unmodifiable(trace),
+      );
+
+      // 4. FACT-CHECK — final go/no-go.
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentStarted,
+        agent: AgentName.factCheck,
+        trace: List.unmodifiable(trace),
+      );
+      final oldestSignal = cluster.signals.reduce(
+          (a, b) => a.timestamp.isBefore(b.timestamp) ? a : b);
+      final factCheckResult = await factCheckAgent.run({
+        'cluster_size': cluster.size,
+        'distinct_sources': cluster.distinctSources,
+        'cluster_weight': cluster.weight,
+        'representative_text': cluster.representativeText,
+        'crisis_type': cluster.crisisType.name,
+        'sector': cluster.sector,
+        'has_official_corroboration':
+            verificationResult.output['has_official_corroboration'] == true,
+        'evidence': verificationResult.output['evidence'] ?? const [],
+        'minutes_since_oldest_signal':
+            DateTime.now().difference(oldestSignal.timestamp).inMinutes,
+      });
+      trace.add(factCheckResult.step);
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentCompleted,
+        agent: AgentName.factCheck,
+        step: factCheckResult.step,
+        trace: List.unmodifiable(trace),
+      );
+
+      // Hard gate: if fact-check says no, stop here. Don't compute severity
+      // or actions for unverified events — that would just confuse responders.
+      if (factCheckResult.output['is_verified'] != true) {
+        yield OrchestratorEvent(
+          phase: OrchestratorPhase.pipelineRejected,
+          trace: List.unmodifiable(trace),
+          errorMessage:
+              (factCheckResult.output['reasoning'] ?? 'Rejected by fact-check')
+                  .toString(),
+        );
+        return;
+      }
+
+      // 5. SEVERITY
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentStarted,
+        agent: AgentName.severity,
+        trace: List.unmodifiable(trace),
+      );
+      final severityResult = await severityAgent.run({
+        'sector': cluster.sector,
+        'crisis_type': cluster.crisisType.name,
+        'signal_count_in_cluster': cluster.size,
+      });
+      trace.add(severityResult.step);
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentCompleted,
+        agent: AgentName.severity,
+        step: severityResult.step,
+        trace: List.unmodifiable(trace),
+      );
+
+      // 6. ACTION
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentStarted,
+        agent: AgentName.action,
+        trace: List.unmodifiable(trace),
+      );
+      final actionRawResult = await actionAgent.run({
+        'sector': cluster.sector,
+        'crisis_type': cluster.crisisType.name,
+        'severity': severityResult.output['severity'],
+        'rsi_score': severityResult.output['rsi_score'],
+      });
+      final actionRealized = actionAgent.realizeActions(
+        agentResult: actionRawResult,
+        sector: cluster.sector,
+        crisisType: cluster.crisisType.name,
+        severity: (severityResult.output['severity'] ?? 'high').toString(),
+      );
+      trace.add(actionRawResult.step);
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.agentCompleted,
+        agent: AgentName.action,
+        step: actionRawResult.step,
+        trace: List.unmodifiable(trace),
+      );
+
+      // Build verified crisis and publish.
+      final crisis = _buildCrisis(
+        signal: signalResult.output,
+        detection: detectionResult.output,
+        severity: severityResult.output,
+        actions: actionRealized.actions,
+        trace: trace,
+        rawSignalText: cluster.representativeText,
+      );
+
+      if (detectionResult.output['is_new_crisis'] == true) {
+        ref.read(crisisListProvider.notifier).addCrisis(crisis);
+      }
+
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.pipelineComplete,
+        trace: List.unmodifiable(trace),
+        crisis: crisis,
+      );
+    } catch (e) {
+      yield OrchestratorEvent(
+        phase: OrchestratorPhase.failed,
+        trace: List.unmodifiable(trace),
+        errorMessage: e.toString(),
+      );
+    }
+  }
 
   Stream<OrchestratorEvent> runPipeline(String rawSignalText) async* {
     final trace = <AgentStep>[];
@@ -259,16 +469,28 @@ class OrchestratorController extends StateNotifier<OrchestratorState> {
   StreamSubscription<OrchestratorEvent>? _subscription;
 
   Future<void> runPipeline(String rawSignalText) async {
+    await _drive(_orchestrator.runPipeline(rawSignalText));
+  }
+
+  /// Runs the cluster-aware verification pipeline. Use this when 2+ citizen
+  /// signals have been grouped — only verified clusters are published.
+  Future<void> runClusterPipeline(SignalCluster cluster) async {
+    await _drive(_orchestrator.runClusterPipeline(cluster));
+  }
+
+  Future<void> _drive(Stream<OrchestratorEvent> stream) async {
     await _subscription?.cancel();
     state = const OrchestratorState(isRunning: true);
 
     final completer = Completer<void>();
-    _subscription = _orchestrator.runPipeline(rawSignalText).listen(
+    _subscription = stream.listen(
       (event) {
+        final isTerminal = event.phase == OrchestratorPhase.pipelineComplete ||
+            event.phase == OrchestratorPhase.pipelineRejected ||
+            event.phase == OrchestratorPhase.failed;
         state = state.copyWith(
           events: [...state.events, event],
-          isRunning: event.phase != OrchestratorPhase.pipelineComplete &&
-              event.phase != OrchestratorPhase.failed,
+          isRunning: !isTerminal,
           completedCrisis: event.crisis ?? state.completedCrisis,
         );
       },

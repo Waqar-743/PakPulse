@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/crisis_types.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -39,6 +40,9 @@ class _ActionCardState extends State<ActionCard> {
     await Haptics.medium();
     setState(() => _action = _action.copyWith(status: ActionStatus.executing));
 
+    // Fire the real-world action (phone / maps) while the animation runs.
+    _launchRealAction();
+
     await Future.delayed(const Duration(milliseconds: 800));
 
     final response = _action.mockResponse ??
@@ -63,6 +67,40 @@ class _ActionCardState extends State<ActionCard> {
       }
       setState(() => _typewriterText = response.substring(0, ++charIndex));
     });
+  }
+
+  /// Opens the real-world counterpart: dialer for dispatches / alerts,
+  /// Google Maps for reroutes. Falls back silently if the URL can't launch.
+  Future<void> _launchRealAction() async {
+    Uri? uri;
+    switch (_action.type) {
+      case ActionType.dispatch:
+        final agency = _action.targetAgency.toLowerCase();
+        if (agency.contains('1122') || agency.contains('rescue')) {
+          uri = Uri.parse('tel:1122');
+        } else if (agency.contains('police') || agency.contains('itp')) {
+          uri = Uri.parse('tel:15');
+        } else if (agency.contains('ndma')) {
+          uri = Uri.parse('tel:1700');
+        } else if (agency.contains('edhi') || agency.contains('ambulance')) {
+          uri = Uri.parse('tel:115');
+        } else {
+          uri = Uri.parse('tel:1122');
+        }
+      case ActionType.alert:
+        // NDMA emergency broadcast hotline
+        uri = Uri.parse('tel:1700');
+      case ActionType.reroute:
+        // Open Google Maps — navigate away from crisis epicentre
+        uri = Uri.parse(
+          'https://www.google.com/maps/dir/?api=1&travelmode=driving',
+        );
+      case ActionType.ticket:
+        return; // already logged to TicketTool
+    }
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override

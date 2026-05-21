@@ -43,6 +43,8 @@ class AppColors {
   // Agent colors
   static const Color agentSignal = signalBlue;
   static const Color agentDetection = protestViolet;
+  static const Color agentVerification = Color(0xFF14B8A6);
+  static const Color agentFactCheck = Color(0xFF8B5CF6);
   static const Color agentSeverity = high;
   static const Color agentAction = critical;
 

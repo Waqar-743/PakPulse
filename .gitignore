@@ -1,0 +1,8 @@
+# Local tooling
+.claude/
+
+# Scaffold project not part of release
+pak_pulse_scaffold/
+
+# Internal notes
+SKILL.md

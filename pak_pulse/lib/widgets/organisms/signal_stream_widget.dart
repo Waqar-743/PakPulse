@@ -55,11 +55,28 @@ class _SignalStreamWidgetState extends ConsumerState<SignalStreamWidget> {
             children: [
               _LiveDot(),
               const SizedBox(width: 8),
-              Text('LIVE SIGNALS', style: AppTypography.labelSmall.copyWith(
+              Text('SCENARIO SIGNALS', style: AppTypography.labelSmall.copyWith(
                 color: AppColors.textSecondary,
                 fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
                 letterSpacing: 1,
               )),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.moderate.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: AppColors.moderate.withOpacity(0.5)),
+                ),
+                child: Text(
+                  'SIM',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.moderate,
+                  ),
+                ),
+              ),
               const Spacer(),
               Text(
                 '${allSignals.length} TOTAL',
